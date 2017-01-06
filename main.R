@@ -17,7 +17,8 @@ library(randomForest)
 jdd_1 <- read.csv("H:/GM/5GM/Analyse_incertitude/TP_final/projet_incertitude/input/jdd_1.csv", header=TRUE)
 jdd_1 <- as.data.frame(apply(apply(jdd_1, 2, gsub, patt=",", replace="."), 2, as.numeric))
 
-express_1 <- jdd_1[,-31:-30]
+X <- jdd_1[,-31:-30]
+Y <- jdd_1[,30:31]
 
 # Variables
 taux_dissolution <- colnames(jdd_1)[startsWith(colnames(jdd_1), "K2diss")]
@@ -80,18 +81,25 @@ for(i in 1:2) {
 
 ## Modélisation par une regression linéaire
 
-full.lm1 <- lm(jdd_1$X.wgt_calcite ~ ., data=express_1)
-full.lm2 <- lm(jdd_1$X.wgt_chlorite ~ ., data=express_1)
+data_calcite <- data.frame(y = jdd_1$X.wgt_calcite, X)
+full.lm <- lm(y ~ ., data=data_calcite)
+summary(full.lm)
 
-min.lm1 <- lm(jdd_1$X.wgt_calcite ~ 1, data=express_1)
-step.lm1 <- step(min.lm1, scope = list(lower=min.lm1,upper=full.lm1), direction = "both")
+min.lm <- lm(y ~ 1, data=data_calcite)
+step.lm <- step(min.lm, scope = list(lower=min.lm,upper=full.lm), direction = "both")
 
-selected.var <- all.vars(formula(step.lm1)[-2])
+selected.var <- all.vars(formula(step.lm)[-2])
+a <- all.vars(formula(full.lm)[-2])
+a[!(a %in% selected.var)]
+par(mfrow=c(2,2))
+plot(step.lm)
 
 ## Morris ça glisse
+par(mfrow=c(1,1))
 
-binf = apply(express_1,2,min)
-bsup = apply(express_1,2,max)
+
+binf = apply(X,2,min)
+bsup = apply(X,2,max)
 
 scale.unif <- function(X) {
   return(X*(bsup-binf) + binf)
@@ -99,24 +107,24 @@ scale.unif <- function(X) {
 
 jdd_1.simule <- function(X) {
   X.scaled <- data.frame(t(apply(X,1,scale.unif)))
-  return(predict(full.lm1,X.scaled))
+  return(predict(full.lm,X.scaled))
 }
 
-mor1 <- morris(model = jdd_1.simule, factors = colnames(express_1), r = 100, design = list(type = "oat",levels = 4, grid.jump = 3))
+mor1 <- morris(model = jdd_1.simule, factors = colnames(X), r = 100, design = list(type = "oat",levels = 10, grid.jump = 2))
 plot(mor1)
 
 
 # ANOVA
 
-anova <- aov(jdd_1$X.wgt_calcite ~ (.)^2, data=express_1)
+anova <- aov(jdd_1$X.wgt_calcite ~ (.)^2, data=X)
 plot(anova)
 
 
 # RANDOMFOREST
 
-rf_fit <- randomForest(jdd_1$X.wgt_calcite ~ ., data=express_1)
+rf_fit <- randomForest(jdd_1$X.wgt_calcite ~ ., data=X)
 varImpPlot(rf_fit)
 
-morf <- morris(model = rf_fit, factors = colnames(express_1), r = 10, design = list(type = "oat",levels = 4, grid.jump = 3))
+morf <- morris(model = rf_fit, factors = colnames(X), r = 10, design = list(type = "oat",levels = 4, grid.jump = 3))
 plot(morf)
 
