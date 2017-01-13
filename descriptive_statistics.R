@@ -59,7 +59,7 @@ for(i in 1:10) {
   title(surface_reaction[i])
 }
 
-# CONTRATIONS DE SORTIE en ?????
+# CONCENTRATIONS DE SORTIE
 par(mfrow=c(1,2))
 for(i in 1:2) {
   boxplot(jdd_1[,sorties[i]])
